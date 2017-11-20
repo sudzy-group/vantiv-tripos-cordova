@@ -1,0 +1,11 @@
+{
+  "name": "vantiv-tripos",
+  "version": "0.1.0",
+  "cordova": {
+    "id": "vantiv-tripos",
+    "platforms": [
+      "ios"
+    ]
+  },
+  "description": "Cordova Plugin for triPos by Sudzy POS team"
+}

@@ -1,0 +1,28 @@
+<?xml version='1.0' encoding='utf-8'?>
+<plugin
+  id="vantiv-tripos-cordova"
+  version="0.1.0"
+  xmlns="http://apache.org/cordova/ns/plugins/1.0"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+  <name>TriposCordova</name>
+  <js-module name="TriposCordova" src="www/TriposCordova.js">
+    <clobbers target="TriposCordova" />
+  </js-module>
+  <platform name="ios">
+    <config-file parent="/*" target="config.xml">
+      <feature name="TriposCordova">
+        <param name="ios-package" value="TriposCordova" />
+      </feature>
+    </config-file>
+    <config-file target="*-Info.plist" parent="UISupportedExternalAccessoryProtocols">
+      <key>UISupportedExternalAccessoryProtocols</key>
+      <array>
+        <string>com.ingenico.easypayemv.spm-transaction</string>
+        <string>com.ingenico.easypayemv.spm-networkaccess</string>
+        <string>com.ingenico.easypayemv.spm-sppchannel</string>
+      </array>
+    </config-file>
+    <source-file src="src/ios/TriposCordova.m" />
+    <framework src="ExternalAccessory.framework" />
+  </platform>
+</plugin>
