@@ -17,6 +17,8 @@
 - (void)sale:(CDVInvokedUrlCommand*)command;
 - (void)refund:(CDVInvokedUrlCommand*)command;
 - (void)sendJsonFromDictionary:(NSDictionary*)dictionary;
+- (void)handleNotInit;
+- (NSString *) getTransactionStatusName:(VTPTransactionStatus)transactionStatus;
 @end
 
 @implementation TriposCordova
@@ -25,7 +27,7 @@
 {
     _sharedVtp = triPOSMobileSDK.sharedVtp;
     _callbackId = command.callbackId;
-
+    
     NSLog(@"init 1 called from %@!", [self class]);
     
     NSString *mode = nil;
@@ -41,6 +43,11 @@
     _vtpConfiguration.applicationConfiguration.mode = environmentType;
     _vtpConfiguration.applicationConfiguration.idlePrompt = @"\nSudzy POS";
     _vtpConfiguration.deviceConfiguration.deviceType = VTPDeviceTypeIngenicoRba;
+    NSString *deviceType = [command.arguments objectAtIndex:5];
+    if ([@"iPP350" isEqualToString:deviceType]) {
+        _vtpConfiguration.deviceConfiguration.deviceType = VTPDeviceTypeIngenicoRbaTcpIp;
+    }
+    
     _vtpConfiguration.deviceConfiguration.isKeyedEntryAllowed = YES;
     _vtpConfiguration.deviceConfiguration.isContactlessMsdEntryAllowed = YES;
     _vtpConfiguration.deviceConfiguration.terminalId = @"00000000";
@@ -52,8 +59,6 @@
     
     _vtpConfiguration.hostConfiguration.applicationName = @"Sudzy POS";
     _vtpConfiguration.hostConfiguration.applicationVersion = @"0.0.0.0";
-    _vtpConfiguration.hostConfiguration.storeCardID = [command.arguments objectAtIndex:5];
-    _vtpConfiguration.hostConfiguration.storeCardPassword = [command.arguments objectAtIndex:6];
     
     _vtpConfiguration.transactionConfiguration.isGiftCardAllowed = NO;
     _vtpConfiguration.transactionConfiguration.currencyCode = VTPCurrencyCodeUsd;
@@ -64,6 +69,8 @@
     _vtpConfiguration.transactionConfiguration.isDebitAllowed = YES;
     _vtpConfiguration.transactionConfiguration.isEmvAllowed = YES;
     
+    NSLog(@"init 3 called from %@!", [self class]);
+
     NSError* error;
     if (![_sharedVtp inititializeWithConfiguration:_vtpConfiguration error:&error])
     {
@@ -74,11 +81,6 @@
         [self sendJsonFromDictionary:err];
         return;
     }
-
-    
-    
-    
-    NSLog(@"init 3 called from %@!", [self class]);
     
     VTPHostConfiguration* hostConfiguration = _vtpConfiguration.hostConfiguration;
     
@@ -116,21 +118,55 @@
      {
          
          NSDictionary* err=[NSDictionary dictionaryWithObjectsAndKeys:
-                              @"onError", @"name",
-                              error, @"result",  nil];
+                            @"onError", @"name",
+                            error, @"result",  nil];
          
          [self sendJsonFromDictionary:err];
          
          NSLog(@"init 6 called from %@!", [self class]);
-
+         
      }];
 }
 
 - (void)sale:(CDVInvokedUrlCommand*)command
 {
-
+    _callbackId = command.callbackId;
+    
+    VTPSaleRequest* request = [[VTPSaleRequest alloc] init];
+    
+    request.cardholderPresentCode = VTPCardHolderPresentCodePresent;
+    request.clerkNumber = @"123";
+    request.convenienceFeeAmount = nil;
+    request.laneNumber = @"1";
+    request.referenceNumber = [command.arguments objectAtIndex:0];
+    request.salesTaxAmount = nil;
+    request.shiftID = @"2";
+    request.ticketNumber = [command.arguments objectAtIndex:1];
+    request.tipAmount = nil;
+    
+    NSString *amount = [command.arguments objectAtIndex:2];
+    NSString *transactionAmount = [amount stringByTrimmingCharactersInSet:[NSCharacterSet symbolCharacterSet]];
+    
+    request.transactionAmount = [NSDecimalNumber decimalNumberWithString:transactionAmount];
+    _sharedVtp = triPOSMobileSDK.sharedVtp;
+    
+    if (_sharedVtp.isInitialized)
+    {
+        [_sharedVtp processSaleRequest:request
+                     completionHandler:^(VTPSaleResponse* response)
+         {
+             [self saleRequestComplete:response];
+         }
+                          errorHandler:^(NSError* error)
+         {
+             [self handleError:error];
+         }];
+    }
+    else
+    {
+        [self handleNotInit];
+    }
 }
-
 
 - (void)refund:(CDVInvokedUrlCommand*)command
 {
@@ -147,4 +183,61 @@
     [self.commandDelegate sendPluginResult:result callbackId:self->_callbackId];
 }
 
+- (void)saleRequestComplete:(VTPSaleResponse*)response
+{
+    NSDateFormatter* dateFormatter = [[NSDateFormatter alloc] init];
+    [dateFormatter setDateFormat:@"yyyy-MM-dd HH:mm:ss"];
+    NSString* dateString = [dateFormatter stringFromDate:response.transactionDateTime];
+    
+    NSString *transactionStatus = [self getTransactionStatusName:response.transactionStatus];
+    NSString *transactionId = response.host.transactionID;
+    
+    NSDictionary *responseArray = [NSDictionary dictionaryWithObjectsAndKeys:
+                                   transactionStatus, @"transactionStatus",
+                                   transactionId ? transactionId : @"<nil>", @"transactionId",
+                                   response.wasProcessedOnline ? @"YES" : @"NO", @"wasProcessedOnline",
+                                   response.referenceNumber, @"referenceNumber",
+                                   dateString ? dateString : @"<nil>", @"transactionDateTime",
+                                   [NSString stringWithFormat:@"%@", response.approvedAmount], @"approvedAmount",
+                                   response.cashbackAmount ? [NSString stringWithFormat:@"%@", response.cashbackAmount] : @"<nil>", @"cashbackAmount",
+                                   response.tipAmount ? [NSString stringWithFormat:@"%@", response.tipAmount] : @"<nil>", @"tipAmount",
+                                   response.balanceAmount ? [NSString stringWithFormat:@"%@", response.balanceAmount] : @"<nil>", @"balanceAmount", nil];
+    
+    [self sendJsonFromDictionary:responseArray];
+}
+
+- (void)handleError:(NSError*)error
+{
+    NSDictionary *responseArray = [NSDictionary dictionaryWithObjectsAndKeys:
+                                   [NSString stringWithFormat:@"%ld", (long)error.code], @"Error Code", error.localizedDescription, @"Error Localized Description", nil];
+    
+    [self sendJsonFromDictionary:responseArray];
+}
+
+- (void)handleNotInit
+{
+    NSDictionary *responseArray = [NSDictionary dictionaryWithObjectsAndKeys:
+                                   @"0", @"Error Code", @"Device not initialized", @"Error Localized Description", nil];
+    
+    [self sendJsonFromDictionary:responseArray];
+}
+
+
+- (NSString *) getTransactionStatusName:(VTPTransactionStatus)transactionStatus
+{
+    switch (transactionStatus)
+    {
+        case VTPTransactionStatusApproved:
+            return @"Approved";
+        case VTPTransactionStatusDeclined:
+            return @"Declined";
+        case VTPTransactionStatusNeedsToBeReversed:
+            return @"Needs to be Reversed";
+        case VTPTransactionStatusUnknown:
+        default:
+            return @"Unknown";
+    }
+}
+
 @end
+
