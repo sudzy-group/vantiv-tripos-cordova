@@ -20,7 +20,9 @@
 - (void)init:(CDVInvokedUrlCommand*)command;
 - (void)sale:(CDVInvokedUrlCommand*)command;
 - (void)refund:(CDVInvokedUrlCommand*)command;
+- (void)paymentAccountCreate:(CDVInvokedUrlCommand*)command;
 - (void)creditcardReturn:(CDVInvokedUrlCommand*)command;
+- (void)creditcardSale:(CDVInvokedUrlCommand*)command;
 - (void)sendJsonFromDictionary:(NSDictionary*)dictionary;
 - (void)handleNotInit;
 - (NSString *) getTransactionStatusName:(VTPTransactionStatus)transactionStatus;
@@ -34,16 +36,12 @@
     _sharedVtp = triPOSMobileSDK.sharedVtp;
     _callbackId = command.callbackId;
     
-    NSLog(@"init 1 called from %@!", [self class]);
-    
     NSString *mode = nil;
     mode = [command.arguments objectAtIndex:0];
     VTPApplicationMode environmentType = VTPApplicationModeTestCertification;
     if ([mode isEqualToString:@"Production"]) {
         environmentType = VTPApplicationModeProduction;
     }
-    
-    NSLog(@"init 2 called from %@!", [self class]);
     
     _vtpConfiguration = [[VTPConfiguration alloc] init];
     _vtpConfiguration.applicationConfiguration.mode = environmentType;
@@ -81,8 +79,7 @@
     _vtpConfiguration.transactionConfiguration.isCashbackAllowed = NO;
     _vtpConfiguration.transactionConfiguration.isDebitAllowed = YES;
     _vtpConfiguration.transactionConfiguration.isEmvAllowed = YES;
-    
-    NSLog(@"init 3 called from %@!", [self class]);
+    _vtpConfiguration.transactionConfiguration.shouldConfirmAmount = NO;
     
     NSError* error;
     if (![_sharedVtp inititializeWithConfiguration:_vtpConfiguration error:&error])
@@ -111,7 +108,7 @@
                                                             credentials:_sharedCredentials
                                                             application:_sharedApplication];
     
-    NSLog(@"init 4 called from %@!", [self class]);
+    NSLog(@"init called from %@!", [self class]);
     
     _sharedVxp = [[VXP alloc] init];
     _sharedVxp.TestCertification = _vtpConfiguration.applicationConfiguration.mode == VTPApplicationModeTestCertification;
@@ -121,8 +118,6 @@
         autoReversal:YES
    completionHandler:^(VXPResponse* response)
      {
-         NSLog(@"init 5 called from %@!", [self class]);
-         
          NSDictionary* conf=[NSDictionary dictionaryWithObjectsAndKeys:
                              mode, @"mode", nil];
          [self sendJsonFromDictionary:conf];
@@ -135,9 +130,6 @@
                             error, @"result",  nil];
          
          [self sendJsonFromDictionary:err];
-         
-         NSLog(@"init 6 called from %@!", [self class]);
-         
      }];
 }
 
@@ -156,6 +148,7 @@
     request.shiftID = @"2";
     request.ticketNumber = [command.arguments objectAtIndex:1];
     request.tipAmount = nil;
+
     
     NSString *amount = [command.arguments objectAtIndex:2];
     NSString *transactionAmount = [amount stringByTrimmingCharactersInSet:[NSCharacterSet symbolCharacterSet]];
@@ -185,39 +178,122 @@
 {
     _callbackId = command.callbackId;
     
-    VTPRefundRequest* request = [[VTPRefundRequest alloc] init];
+    VXPTerminal *terminal = [[VXPTerminal alloc] init];
+    terminal.TerminalID = @"1";
+    terminal.LaneNumber = @"1";
+    terminal.TerminalType = VXPTerminalTypeMobile;
+    terminal.CardPresentCode = VXPCardPresentCodeNotPresent;
+    terminal.CardholderPresentCode = VXPCardHolderPresentCodeNotPresent;
+    terminal.CVVPresenceCode = VXPCVVPresenceCodeDefault;
+    terminal.TerminalCapabilityCode = VXPTerminalCapabilityCodeDefault;
+    terminal.TerminalEnvironmentCode = VXPTerminalEnvironmentCodeDefault;
+    terminal.MotoECICode = VXPMotoECICodeNotUsed;
+    terminal.CardInputCode = VXPCardInputCodeManualKeyed;
     
-    request.cardholderPresentCode = VTPCardHolderPresentCodePresent;
-    request.clerkNumber = @"123";
-    request.convenienceFeeAmount = nil;
-    request.laneNumber = @"1";
-    request.referenceNumber = [command.arguments objectAtIndex:0];
-    request.salesTaxAmount = nil;
-    request.shiftID = @"2";
-    request.ticketNumber = [command.arguments objectAtIndex:1];
+    VXPTransaction *transaction = [[VXPTransaction alloc] init];
+    transaction.TransactionID = [command.arguments objectAtIndex:0];
+    transaction.ReversalType = VXPReversalTypeFull;
+    NSString *amount = [command.arguments objectAtIndex:2];
+    NSString *transactionAmount = [amount stringByTrimmingCharactersInSet:[NSCharacterSet symbolCharacterSet]];
+    transaction.TransactionAmount = [NSDecimalNumber decimalNumberWithString:transactionAmount];
+    
+    VXPRequest* creditcardSaleReversal = [VXPRequest requestWithRequestType:VXPRequestTypeCreditCardReversal
+                                                               credentials:_sharedCredentials
+                                                               application:_sharedApplication];
+    
+    creditcardSaleReversal.Terminal = terminal;
+    creditcardSaleReversal.Transaction = transaction;
+    
+    NSLog(@"refund called from %@!", [self class]);
+    [_sharedVxp sendRequest:creditcardSaleReversal
+                    timeout:10000
+               autoReversal:YES
+          completionHandler:^(VXPResponse* response)
+     {
+         [self handleCreditcardReversalResponse:response];
+     }
+           errorHandler:^(NSError* error)
+     {
+         [self handleError:error];
+     }];
+}
+
+- (void)paymentAccountCreate:(CDVInvokedUrlCommand*)command
+{
+    _callbackId = command.callbackId;
+    
+    VXPTransaction *transaction = [[VXPTransaction alloc] init];
+    
+    transaction.TransactionID = [command.arguments objectAtIndex:0];
+    
+    VXPRequest* paymentAccountCreateRequest = [VXPRequest requestWithRequestType:VXPRequestTypePaymentAccountCreateWithTransId
+                                 credentials:_sharedCredentials
+                                 application:_sharedApplication];
+     paymentAccountCreateRequest.PaymentAccount = [[VXPPaymentAccount alloc] init];
+     paymentAccountCreateRequest.PaymentAccount.PaymentAccountType = VXPPaymentAccountTypeCreditCard;
+     paymentAccountCreateRequest.PaymentAccount.PaymentAccountReferenceNumber = @"SOMESTRING";
+
+     paymentAccountCreateRequest.Transaction = transaction;
+    
+    NSLog(@"paymentAccountCreate called from %@!", [self class]);
+    [_sharedVxp sendRequest:paymentAccountCreateRequest
+                    timeout:10000
+               autoReversal:YES
+          completionHandler:^(VXPResponse* response)
+     {
+         [self handlePaymentAccountCreateResponse:response];
+     }
+               errorHandler:^(NSError* error)
+     {
+         [self handleError:error];
+     }];
+}
+
+- (void)creditcardSale:(CDVInvokedUrlCommand *)command
+{
+    _callbackId = command.callbackId;
+    
+    VXPTerminal *terminal = [[VXPTerminal alloc] init];
+    terminal.TerminalID = @"1";
+    terminal.LaneNumber = @"1";
+    terminal.TerminalType = VXPTerminalTypeMobile;
+    terminal.CardPresentCode = VXPCardPresentCodeNotPresent;
+    terminal.CardholderPresentCode = VXPCardHolderPresentCodeNotPresent;
+    terminal.CVVPresenceCode = VXPCVVPresenceCodeDefault;
+    terminal.TerminalCapabilityCode = VXPTerminalCapabilityCodeDefault;
+    terminal.TerminalEnvironmentCode = VXPTerminalEnvironmentCodeDefault;
+    terminal.MotoECICode = VXPMotoECICodeNotUsed;
+    terminal.CardInputCode = VXPCardInputCodeManualKeyed;
+    
+    VXPTransaction *transaction = [[VXPTransaction alloc] init];
     
     NSString *amount = [command.arguments objectAtIndex:2];
     NSString *transactionAmount = [amount stringByTrimmingCharactersInSet:[NSCharacterSet symbolCharacterSet]];
-    request.transactionAmount = [NSDecimalNumber decimalNumberWithString:transactionAmount];
+    transaction.TransactionAmount = [NSDecimalNumber decimalNumberWithString:transactionAmount];
+    transaction.ReferenceNumber = [command.arguments objectAtIndex:0];
     
-    _sharedVtp = triPOSMobileSDK.sharedVtp;
+    VXPRequest* creditcardSaleRequest = [VXPRequest requestWithRequestType:VXPRequestTypeCreditCardSale
+                                                                     credentials:_sharedCredentials
+                                                                     application:_sharedApplication];
     
-    if (_sharedVtp.isInitialized)
-    {
-        [_sharedVtp processRefundRequest :request
-                     completionHandler:^(VTPRefundResponse* response)
-         {
-             [self refundRequestComplete:response];
-         }
-          errorHandler:^(NSError* error)
-         {
-             [self handleError:error];
-         }];
-    }
-    else
-    {
-        [self handleNotInit];
-    }
+    creditcardSaleRequest.PaymentAccount = [[VXPPaymentAccount alloc] init];
+    creditcardSaleRequest.PaymentAccount.PaymentAccountID = [command.arguments objectAtIndex:1];
+    
+    creditcardSaleRequest.Terminal = terminal;
+    creditcardSaleRequest.Transaction = transaction;
+    
+    NSLog(@"creditcardSale 4 called from %@!", [self class]);
+    [_sharedVxp sendRequest:creditcardSaleRequest
+                    timeout:10000
+               autoReversal:YES
+          completionHandler:^(VXPResponse* response)
+     {
+         [self handleCreditcardSaleResponse:response];
+     }
+               errorHandler:^(NSError* error)
+     {
+         [self handleError:error];
+     }];
 }
 
 
@@ -264,8 +340,6 @@
      }];
 }
 
-
-
 -(void)sendJsonFromDictionary:(NSDictionary*)dictionary {
     NSError* error;
     NSData* jsonData = [NSJSONSerialization dataWithJSONObject:dictionary options:NSJSONWritingPrettyPrinted error:&error];
@@ -285,9 +359,18 @@
     NSString *transactionStatus = [self getTransactionStatusName:response.transactionStatus];
     NSString *transactionId = response.host.transactionID;
     
+    NSString *cardType = response.card ? response.card.cardLogo : @"";
+    NSString *cardMask = response.card ? response.card.maskedAccountNumber : @"";
+    NSString *cardExpMonth = response.card ? response.card.expirationMonth : @"";
+    NSString *cardExpYear = response.card ? response.card.expirationYear : @"";
+    
     NSDictionary *responseArray = [NSDictionary dictionaryWithObjectsAndKeys:
                                    transactionStatus, @"transactionStatus",
                                    transactionId ? transactionId : @"<nil>", @"transactionId",
+                                   cardType, @"cardType",
+                                   cardMask, @"cardMask",
+                                   cardExpMonth, @"cardExpMonth",
+                                   cardExpYear, @"cardExpYear",
                                    response.wasProcessedOnline ? @"YES" : @"NO", @"wasProcessedOnline",
                                    response.referenceNumber, @"referenceNumber",
                                    dateString ? dateString : @"<nil>", @"transactionDateTime",
@@ -299,10 +382,8 @@
     [self sendJsonFromDictionary:responseArray];
 }
 
-
 - (void)refundRequestComplete:(VTPRefundResponse*)response
 {
-
     NSString* transactionStatus = [self getTransactionStatusName:response.transactionStatus];
     
     NSString* paymentType = [self getPaymentTypeName:response.paymentType];
@@ -335,6 +416,50 @@
 }
 
 
+- (void)handleCreditcardSaleResponse:(VXPResponse*) response
+{
+    NSDictionary *responseArray = [NSDictionary dictionaryWithObjectsAndKeys:
+                                   response.Transaction.TransactionStatus, @"transactionStatus",
+                                   response.Transaction.TransactionID, @"transactionId",
+                                   response.Card ? response.Card.CardLogo : @"", @"cardType",
+                                   response.Card ? response.Card.CardNumberMasked : @"", @"cardMask",
+                                   response.Transaction.ApprovedAmount, @"approvedAmount",
+                                   response.Transaction.ReferenceNumber, @"referenceNumber", nil];
+    
+    [self sendJsonFromDictionary:responseArray];
+}
+
+- (void)handleCreditcardReversalResponse:(VXPResponse*) response
+{
+    NSDictionary *responseArray = [NSDictionary dictionaryWithObjectsAndKeys:
+                                   response.Transaction.TransactionStatus, @"transactionStatus",
+                                   response.Transaction.TransactionID, @"transactionId",
+                                   response.Card ? response.Card.CardLogo : @"", @"cardType",
+                                   response.Card ? response.Card.CardNumberMasked : @"", @"cardMask",
+                                   response.Transaction.ApprovedAmount, @"approvedAmount",
+                                   response.Transaction.ReferenceNumber, @"referenceNumber", nil];
+    
+    [self sendJsonFromDictionary:responseArray];
+}
+
+- (void)handlePaymentAccountCreateResponse:(VXPResponse*) response
+{
+    NSString *cardType = response.Card ? response.Card.CardLogo : @"";
+    NSString *cardMask = response.Card ? response.Card.CardNumberMasked : @"";
+    NSString *cardExpMonth = response.Card ? response.Card.ExpirationMonth : @"";
+    NSString *cardExpYear = response.Card ? response.Card.ExpirationYear : @"";
+    NSString *paymentAccountID = response.PaymentAccount ? response.PaymentAccount.PaymentAccountID : @"";
+    
+    NSDictionary *responseArray = [NSDictionary dictionaryWithObjectsAndKeys:
+       paymentAccountID, @"paymentAccountID",
+       cardType, @"cardType",
+       cardMask, @"cardMask",
+       cardExpMonth, @"cardExpMonth",
+       cardExpYear, @"cardExpYear", nil];
+    
+    [self sendJsonFromDictionary:responseArray];
+}
+
 - (void)handleError:(NSError*)error
 {
     NSDictionary *responseArray = [NSDictionary dictionaryWithObjectsAndKeys:
@@ -356,6 +481,8 @@
     switch (transactionStatus)
     {
         case VTPTransactionStatusApproved:
+        case VTPTransactionStatusPartiallyApproved:
+        case VTPTransactionStatusApprovedByMerchant:
             return @"Approved";
         case VTPTransactionStatusDeclined:
             return @"Declined";

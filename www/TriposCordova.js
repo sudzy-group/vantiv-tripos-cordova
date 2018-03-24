@@ -15,3 +15,11 @@ exports.refund = function (referenceNumber, ticketNumber, transactionAmount, suc
 exports.creditCardReturn = function (transactionId, referenceNumber, transactionAmount, success, error) {
     exec(success, error, 'TriposCordova', 'creditCardReturn', [transactionId, referenceNumber, transactionAmount]);
 };
+
+exports.paymentAccountCreate = function (transactionId, success, error) {
+    exec(success, error, 'TriposCordova', 'paymentAccountCreate', [transactionId]);
+};
+
+exports.creditcardSale = function (refNum, paymentAccountId, amount, success, error) {
+    exec(success, error, 'TriposCordova', 'creditcardSale', [refNum, paymentAccountId, amount]);
+};
