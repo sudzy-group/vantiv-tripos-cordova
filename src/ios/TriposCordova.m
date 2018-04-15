@@ -11,7 +11,6 @@
     NSOperationQueue* _queue;
     VTPConfiguration* _vtpConfiguration;
     VTP* _sharedVtp;
-
     VXP* _sharedVxp;
     VXPCredentials* _sharedCredentials;
     VXPApplication* _sharedApplication;
