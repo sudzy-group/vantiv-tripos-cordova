@@ -144,6 +144,7 @@
     request.convenienceFeeAmount = nil;
     request.laneNumber = @"1";
     request.referenceNumber = [command.arguments objectAtIndex:0];
+    request.ticketNumber = [command.arguments objectAtIndex:0];
     request.salesTaxAmount = nil;
     request.shiftID = @"2";
     request.ticketNumber = [command.arguments objectAtIndex:1];
@@ -271,6 +272,7 @@
     NSString *transactionAmount = [amount stringByTrimmingCharactersInSet:[NSCharacterSet symbolCharacterSet]];
     transaction.TransactionAmount = [NSDecimalNumber decimalNumberWithString:transactionAmount];
     transaction.ReferenceNumber = [command.arguments objectAtIndex:0];
+    transaction.TicketNumber = [command.arguments objectAtIndex:0];
     
     VXPRequest* creditcardSaleRequest = [VXPRequest requestWithRequestType:VXPRequestTypeCreditCardSale
                                                                      credentials:_sharedCredentials
@@ -306,6 +308,7 @@
     transaction.TransactionID = [command.arguments objectAtIndex:0];
 
     transaction.ReferenceNumber = [command.arguments objectAtIndex:1];
+    transaction.TicketNumber = [command.arguments objectAtIndex:1];
 
     NSString *amount = [command.arguments objectAtIndex:2];
     NSString *transactionAmount = [amount stringByTrimmingCharactersInSet:[NSCharacterSet symbolCharacterSet]];
