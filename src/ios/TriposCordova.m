@@ -48,6 +48,7 @@
     _vtpConfiguration.deviceConfiguration.deviceType = VTPDeviceTypeIngenicoRba;
     NSString *deviceType = [command.arguments objectAtIndex:5];
     if ([@"iPP350" isEqualToString:deviceType]) {
+        NSLog(@"init iPP350");
         _vtpConfiguration.deviceConfiguration.deviceType = VTPDeviceTypeIngenicoRbaTcpIp;
     }
     
@@ -60,6 +61,7 @@
         _vtpConfiguration.deviceConfiguration.tcpIpConfiguration = [[VTPDeviceTcpIpConfiguration alloc] init];
         _vtpConfiguration.deviceConfiguration.tcpIpConfiguration.ipAddress = tcpIpAddress;
         _vtpConfiguration.deviceConfiguration.tcpIpConfiguration.port = 12000;
+        NSLog(@"tcp address %@", tcpIpAddress);
     }
     
     _vtpConfiguration.hostConfiguration.acceptorId = [command.arguments objectAtIndex:1];
@@ -193,6 +195,8 @@
     VXPTransaction *transaction = [[VXPTransaction alloc] init];
     transaction.TransactionID = [command.arguments objectAtIndex:0];
     transaction.ReversalType = VXPReversalTypeFull;
+    transaction.ReferenceNumber = [command.arguments objectAtIndex:1];
+    transaction.TicketNumber = [command.arguments objectAtIndex:1];
     NSString *amount = [command.arguments objectAtIndex:2];
     NSString *transactionAmount = [amount stringByTrimmingCharactersInSet:[NSCharacterSet symbolCharacterSet]];
     transaction.TransactionAmount = [NSDecimalNumber decimalNumberWithString:transactionAmount];
