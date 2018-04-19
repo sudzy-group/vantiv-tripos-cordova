@@ -1,6 +1,7 @@
 {
   "name": "vantiv-tripos",
   "version": "0.1.0",
+  "description": "cordova pluging to use vantiv triPOS SDK",
   "cordova": {
     "id": "vantiv-tripos",
     "platforms": [
@@ -11,5 +12,20 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/sudzy-group/vantiv-tripos-cordova.git"
-  }
+  },
+  "keywords": [
+    "ecosystem:cordova",
+    "vantiv",
+    "worldpay",    
+    "tripos",        
+    "cordova-ios"
+  ],
+  "engines": [
+    {
+      "name": "cordova",
+      "version": ">=3.4.0"
+    }
+  ],
+  "author": "Sudzy POS Group",
+  "license": "MIT"
 }
