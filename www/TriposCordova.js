@@ -20,6 +20,10 @@ exports.paymentAccountCreate = function (transactionId, success, error) {
     exec(success, error, 'TriposCordova', 'paymentAccountCreate', [transactionId]);
 };
 
+exports.paymentAccountDelete = function (paymentAccountId, success, error) {
+    exec(success, error, 'TriposCordova', 'paymentAccountDelete', [paymentAccountId]);
+};
+
 exports.creditcardSale = function (refNum, paymentAccountId, amount, success, error) {
     exec(success, error, 'TriposCordova', 'creditcardSale', [refNum, paymentAccountId, amount]);
 };

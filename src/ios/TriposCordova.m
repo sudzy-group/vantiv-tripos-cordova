@@ -20,6 +20,7 @@
 - (void)sale:(CDVInvokedUrlCommand*)command;
 - (void)refund:(CDVInvokedUrlCommand*)command;
 - (void)paymentAccountCreate:(CDVInvokedUrlCommand*)command;
+- (void)paymentAccountDelete:(CDVInvokedUrlCommand*)command;
 - (void)creditcardReturn:(CDVInvokedUrlCommand*)command;
 - (void)creditcardSale:(CDVInvokedUrlCommand*)command;
 - (void)sendJsonFromDictionary:(NSDictionary*)dictionary;
@@ -241,6 +242,30 @@
     
     NSLog(@"paymentAccountCreate called from %@!", [self class]);
     [_sharedVxp sendRequest:paymentAccountCreateRequest
+                    timeout:10000
+               autoReversal:YES
+          completionHandler:^(VXPResponse* response)
+     {
+         [self handlePaymentAccountCreateResponse:response];
+     }
+               errorHandler:^(NSError* error)
+     {
+         [self handleError:error];
+     }];
+}
+
+- (void)paymentAccountDelete:(CDVInvokedUrlCommand*)command
+{
+    _callbackId = command.callbackId;
+    
+    VXPRequest* paymentAccountDeleteRequest = [VXPRequest requestWithRequestType:VXPRequestTypePaymentAccountDelete
+                                                                     credentials:_sharedCredentials
+                                                                     application:_sharedApplication];
+    paymentAccountDeleteRequest.PaymentAccount = [[VXPPaymentAccount alloc] init];
+    paymentAccountDeleteRequest.PaymentAccount.PaymentAccountID = [command.arguments objectAtIndex:0];
+    
+    NSLog(@"paymentAccountDelete called from %@!", [self class]);
+    [_sharedVxp sendRequest:paymentAccountDeleteRequest
                     timeout:10000
                autoReversal:YES
           completionHandler:^(VXPResponse* response)
@@ -515,4 +540,3 @@
 }
 
 @end
-
