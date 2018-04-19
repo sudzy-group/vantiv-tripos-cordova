@@ -7,5 +7,9 @@
       "ios"
     ]
   },
-  "description": "Cordova Plugin for triPos by Sudzy POS team"
+  "description": "Cordova Plugin for triPos by Sudzy POS team",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sudzy-group/vantiv-tripos-cordova.git"
+  },  
 }
