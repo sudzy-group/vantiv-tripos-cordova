@@ -394,6 +394,7 @@
     NSString *cardMask = response.card ? response.card.maskedAccountNumber : @"";
     NSString *cardExpMonth = response.card ? response.card.expirationMonth : @"";
     NSString *cardExpYear = response.card ? response.card.expirationYear : @"";
+    NSString *cardHolderName = response.card ? response.card.cardHolderName : @"";
     
     NSDictionary *responseArray = [NSDictionary dictionaryWithObjectsAndKeys:
                                    transactionStatus, @"transactionStatus",
@@ -402,6 +403,7 @@
                                    cardMask, @"cardMask",
                                    cardExpMonth, @"cardExpMonth",
                                    cardExpYear, @"cardExpYear",
+                                   cardHolderName, @"cardHolderName",
                                    response.wasProcessedOnline ? @"YES" : @"NO", @"wasProcessedOnline",
                                    response.referenceNumber, @"referenceNumber",
                                    dateString ? dateString : @"<nil>", @"transactionDateTime",
