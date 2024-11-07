@@ -54,7 +54,9 @@
     }
     
     _vtpConfiguration.deviceConfiguration.isKeyedEntryAllowed = YES;
-    _vtpConfiguration.deviceConfiguration.isContactlessMsdEntryAllowed = YES;
+
+    _vtpConfiguration.deviceConfiguration.isContactlessEntryAllowed = YES;
+
     _vtpConfiguration.deviceConfiguration.terminalId = @"00000000";
     
     NSString *tcpIpAddress = [command.arguments objectAtIndex:6];
